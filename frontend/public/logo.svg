@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <rect width="32" height="32" rx="6" fill="url(#logoGrad)"/>
+  <path d="M8 22V10l8 6-8 6z" fill="white" opacity="0.9"/>
+  <path d="M14 22V10l8 6-8 6z" fill="white" opacity="0.6"/>
+  <!-- Text -->
+  <text x="40" y="22" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="currentColor">AnimeGadgets</text>
+</svg>
