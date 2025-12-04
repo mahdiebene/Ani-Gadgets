@@ -43,6 +43,8 @@ const rateLimitMiddleware = (req, res, next) => {
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
+  'https://anigadgetsbd.app',
+  'https://www.anigadgetsbd.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -50,8 +52,8 @@ app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
-    // Allow any vercel.app subdomain or configured origins
-    if (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+    // Allow vercel.app subdomains, custom domain, or configured origins
+    if (origin.endsWith('.vercel.app') || origin.endsWith('anigadgetsbd.app') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     callback(new Error('Not allowed by CORS'));
