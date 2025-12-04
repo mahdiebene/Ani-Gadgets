@@ -72,7 +72,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/anime', animeRoutes);
 app.use('/api/stats', statsRoutes);
 
-// Health check
+// Health check - for uptime monitoring (BetterStack, UptimeRobot, etc.)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -81,18 +81,67 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint
+// Root endpoint - HTML page for monitoring
 app.get('/', (req, res) => {
-  res.json({
-    name: 'AnimeGadgetsHub API',
-    version: '1.0.0',
-    endpoints: {
-      products: '/api/products',
-      anime: '/api/anime',
-      stats: '/api/stats',
-      health: '/health'
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnimeGadgetsHub API</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a; 
+      color: #fff; 
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-  });
+    .container { text-align: center; padding: 2rem; }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .status { 
+      display: inline-block;
+      background: #22c55e; 
+      color: #000; 
+      padding: 0.25rem 0.75rem; 
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .version { color: #666; font-size: 0.875rem; margin-bottom: 2rem; }
+    .endpoints { text-align: left; background: #111; padding: 1.5rem; max-width: 300px; margin: 0 auto; }
+    .endpoints h3 { font-size: 0.75rem; color: #666; text-transform: uppercase; margin-bottom: 1rem; }
+    .endpoints a { 
+      display: block; 
+      color: #3b82f6; 
+      text-decoration: none; 
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #222;
+    }
+    .endpoints a:hover { color: #60a5fa; }
+    .endpoints a:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AnimeGadgetsHub API</h1>
+    <div class="status">● Online</div>
+    <p class="version">v1.0.0</p>
+    <div class="endpoints">
+      <h3>Endpoints</h3>
+      <a href="/api/products">/api/products</a>
+      <a href="/api/anime">/api/anime</a>
+      <a href="/api/stats">/api/stats</a>
+      <a href="/health">/health</a>
+    </div>
+  </div>
+</body>
+</html>`;
+  res.type('html').send(html);
 });
 
 // Error handling middleware
