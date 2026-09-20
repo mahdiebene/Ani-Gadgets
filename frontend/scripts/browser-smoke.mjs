@@ -8,12 +8,27 @@ import { tmpdir } from 'node:os';
 import { join, resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { compareOffers } = require('../../backend/src/catalogue/comparison.js');
+const { createDemo } = require('../../backend/src/catalogue/demo.js');
 
 if (!process.env.CHROME_PATH) throw new Error('Set CHROME_PATH to a local Chrome/Chromium executable.');
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 await readFile(join(dist, 'index.html'));
 const profile = await mkdtemp(join(tmpdir(), 'anigadgets-browser-'));
 const requests = [];
+const demo = createDemo();
+const catalogue = demo.products.map((product, index) => ({ ...product, id: index + 1 }));
+const details = product => {
+  const rows = demo.offers.filter(o => o.product === product.key);
+  const offers = rows.map((o, index) => ({ ...o, ...demo.observations.find(n => n.offer === o.key),
+    ...(product.id === 2 ? { currency: 'USD', full_price: 10, shipping_amount: 2 } : {}),
+    id: product.id * 2 + index, catalogue_product_id: product.id,
+    merchant_name: demo.merchants.find(m => m.key === o.merchant).name }));
+  return { product, offers: compareOffers(offers), history: offers.map(o => ({ ...o, offer_id: o.id })),
+    evidence: demo.evidence.filter(e => e.product === product.key) };
+};
 const fixtures = Array.from({ length: 50 }, (_, index) => ({
   id: index + 1, name: `${index < 45 ? 'Naruto' : 'Gojo'} figure ${index + 1}`,
   product_url: `https://example.test/fixture/${index + 1}`, image_url: '/favicon.svg',
@@ -31,6 +46,16 @@ const server = createServer(async (req, res) => {
       else if (url.pathname === '/api/products/meta/categories') data = ['Figures'];
       else if (url.pathname === '/api/products/meta/anime') data = [];
       else if (url.pathname === '/api/products/meta/sources') data = ['daraz', 'Example shop'];
+      else if (url.pathname === '/api/catalogue') {
+        const search = url.searchParams.get('search') || '';
+        const matches = catalogue.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+        const offset = Number(url.searchParams.get('offset') || 0);
+        data = matches.slice(offset, offset + 20); pagination = { total: matches.length, offset, limit: 20 };
+      } else if (/^\/api\/catalogue\/\d+$/.test(url.pathname)) {
+        const product = catalogue.find(p => p.id === Number(url.pathname.split('/').pop()));
+        if (!product) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Not found' })); return; }
+        data = details(product);
+      } else if (/^\/api\/products\/\d+$/.test(url.pathname)) data = fixtures.find(p => p.id === Number(url.pathname.split('/').pop()));
       else if (url.pathname === '/api/products') {
         const search = url.searchParams.get('search') || '';
         if (search === 'slow') await delay(500);
@@ -153,8 +178,62 @@ try {
   await waitFor('document.querySelector("#products article button")?.getAttribute("aria-pressed") === "true"');
   await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   assert.equal(await evaluate('getComputedStyle(document.querySelector("#products article button")).opacity'), '1');
+  await evaluate(`document.querySelector('a[href="#catalogue"]').click()`);
+  await waitFor('document.querySelector("h1")?.textContent === "Reviewed catalogue" && document.querySelectorAll("main article").length === 20');
+  await evaluate(`document.querySelector('button[aria-label="Next page"]').click()`);
+  await waitFor('document.querySelector("main h2")?.textContent === "Demo figure 21"');
+  await evaluate(`document.querySelector('a[href="#catalogue/21"]').click()`);
+  await waitFor('document.querySelector("h1")?.textContent === "Demo figure 21"');
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Incomplete costs")'), true);
+  await evaluate('history.back()');
+  await waitFor(`document.querySelector('h1')?.textContent === 'Reviewed catalogue' && Boolean(document.querySelector('a[href="#catalogue/1"]'))`);
+  await evaluate(`document.querySelector('a[href="#catalogue/1"]').click()`);
+  await waitFor('document.querySelector("h1")?.textContent === "Demo figure 1"');
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Lowest complete total in this comparison group")'), true);
+  await evaluate(`document.querySelector('button[aria-label="Save Demo figure 1"]').click()`);
+  await evaluate(`(() => { const input = document.querySelector('input[aria-label="BDT price target"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2000');
+    input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await waitFor('document.querySelector("main").textContent.includes("Target reached")');
+  await evaluate(`Array.from(document.querySelectorAll('summary')).find(e => e.textContent.includes('Observation history')).click()`);
+  assert.equal(await evaluate('document.querySelector("details[open] li")?.textContent.includes("full")'), true);
+  assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'mobile layout must not overflow');
+  await command('Page.reload');
+  await waitFor('document.querySelector("h1")?.textContent === "Demo figure 1" && document.querySelector("main").textContent.includes("Target reached")');
+  await evaluate(`document.querySelector('a[href="#saved"]').click()`);
+  await waitFor('document.querySelector("h1")?.textContent === "Saved items" && document.querySelectorAll("main article").length === 2');
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Price target reached")'), true);
+  await evaluate(`document.querySelector('button[aria-label="Save Demo figure 1"]').click()`);
+  await waitFor('document.querySelectorAll("main article").length === 1');
+  await evaluate(`location.hash = 'catalogue/999999'`);
+  await waitFor('document.querySelector("main [role=alert]")?.textContent.includes("Not found")');
+  await evaluate(`location.hash = 'catalogue/5'`);
+  await waitFor('document.querySelector("h1")?.textContent === "Demo figure 5"');
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Not a full price")'), true);
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Lowest complete total in this comparison group")'), false);
+  await evaluate(`location.hash = 'catalogue/2'`);
+  await waitFor('document.querySelector("h1")?.textContent === "Demo manga 2"');
+  await evaluate(`Array.from(document.querySelectorAll('summary')).find(e => e.textContent.includes('Manual BDT estimate')).click()`);
+  await evaluate(`(() => {
+    for (const [selector, value] of [['input[aria-label="Exchange rate for offer 4"]', '120'], ['details[open] input[type=date]', '2026-01-01']]) {
+      const input = document.querySelector(selector);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  })()`);
+  await waitFor('document.querySelector("details[open]").textContent.includes("using your rate 120 dated 2026-01-01")');
+  assert.equal(await evaluate('document.querySelector("main").textContent.includes("Lowest complete total in this comparison group")'), false);
+  await evaluate(`(() => {
+    const values = JSON.parse(localStorage.getItem('anigadgets:wishlist:v1'));
+    values.push('catalogue:999999'); localStorage.setItem('anigadgets:wishlist:v1', JSON.stringify(values));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'anigadgets:wishlist:v1' }));
+    location.hash = 'saved';
+  })()`);
+  await waitFor('document.querySelector("main").textContent.includes("No longer available")');
+  await evaluate(`Array.from(document.querySelectorAll('main button')).find(e => e.textContent === 'Remove unavailable item').click()`);
+  await waitFor('document.querySelectorAll("main article").length === 1');
   assert.deepEqual(errors, []);
-  console.log('Browser smoke passed: search/repeated search, page reset, source filtering, stale request isolation, saved-state reload, touch visibility.');
+  console.log('Browser smoke passed: legacy discovery, catalogue pagination/detail/back/reload, prices/deposits, history, saved/unavailable removal, price targets, manual FX, missing product and mobile layout.');
 } finally {
   socket?.close();
   chrome.kill();

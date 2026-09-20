@@ -6,7 +6,7 @@ const statsRoutes = require('./routes/stats');
 const { createRateLimiter } = require('./middleware/rateLimit');
 const { httpError, HttpError } = require('./utils/http');
 
-function createApp({ db, logger = console, rateLimitOptions } = {}) {
+function createApp({ db, catalogue, logger = console, rateLimitOptions } = {}) {
   const app = express();
   app.disable('x-powered-by');
   // Enable only behind one trusted proxy; the deployed API binds to localhost.
@@ -24,6 +24,7 @@ function createApp({ db, logger = console, rateLimitOptions } = {}) {
   app.locals.close = limiter.close;
   app.use('/api', limiter.middleware);
   app.use('/api/products', productRoutes(db));
+  app.use('/api/catalogue', require('./routes/catalogue')(catalogue));
   app.use('/api/anime', animeRoutes(db));
   app.use('/api/stats', statsRoutes(db));
   app.get('/health', async (req, res) => {

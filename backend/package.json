@@ -8,6 +8,9 @@
     "dev": "nodemon src/index.js",
     "ingest": "node src/ingest/run.js",
     "ingest:dry-run": "node src/ingest/run.js --dry-run",
+    "catalogue": "node src/catalogue/cli.js",
+    "test:postgres": "node scripts/postgres-check.cjs",
+    "demo": "node scripts/demo.cjs",
     "test": "node --test"
   },
   "dependencies": {

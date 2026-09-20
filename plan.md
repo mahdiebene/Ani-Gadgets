@@ -1,7 +1,54 @@
-# Bangladesh anime merchandise discovery and comparison
+# Solo, zero-budget merchandise discovery and comparison
+
+## Current scope — supersedes the business roadmap below
+
+The owner's latest direction is a one-person software project. No money, paid services, outreach, interviews, partnerships, legal workstream or new external integrations are part of completion. Existing Daraz ingestion stays intact. Local, manually authored data and clearly fictional fixtures exercise the new features without contacting third parties. Importing a file never fetches its URLs or images.
+
+Current software acceptance checklist:
+- [x] Private local JSON curation CLI: strict validation, database-free dry-run, explicit apply, manual review/publication and unpublishing.
+- [x] Restricted curator/importer roles, transactional repeatable imports and append-only observations; no public admin endpoint.
+- [x] Read-only reviewed catalogue API, public-field projections, search/pagination, offers, references and history.
+- [x] Complete BDT totals compared only inside equivalent groups; unknown/deposit/stale costs never win a cheapest label.
+- [x] Catalogue/detail UI, browser back/reload navigation, saved-items page, on-device price targets and manual FX estimates.
+- [x] Buying checklist and an offline demo containing 100 synthetic identities, never seeded automatically into production.
+- [x] Regression/API/database tests, frontend build and fixture-only Chrome validation.
+- [x] Operator documentation, final diff review and accurate validation log.
+
+Production migrations and hosting changes are separate, not inferred from local tests or a push. PostgreSQL 17 validation must be reported separately if unavailable. Real inventory research and remote notifications are outside scope. The historical business/permission milestones below are **retired**, not prerequisites and not claimed as delivered.
+
+## Solo completion validation — 2026-09-20
+
+- Started from clean `main` at `b63aace`, matching the locally recorded `origin/main`; no remote fetch or external service call was needed.
+- Backend: **42 passed, zero skipped** with the disposable PostgreSQL 16 checker. Schema and role scripts applied twice. Tests cover legacy ingestion/isolation, strict curation, reader authorization, narrower observation-only access, transactional rollback, idempotent imports, immutable offer mapping, append-only observations, publication withdrawal, evidence expiry, private-field isolation and comparable totals.
+- The CLI imported **100 fictional identities, 2 fictional merchants, 200 offers, 200 observations and 100 reference fixtures** into the disposable database. The cluster was stopped and removed. Earlier interrupted runner attempts were cleaned up; Windows subprocess pipe/NOTICE handling was corrected in the reusable checker.
+- Frontend: **19 unit tests passed**, Vite production build passed, fixture-only headless Chrome passed. Browser checks include legacy search/source/saves, catalogue pagination/back/reload, details, complete/deposit/unknown costs, history, target persistence, saved/unavailable removal, manual FX and mobile layout. Browser test refuses external requests.
+- `npm --prefix 'E:\ani-gadgets\backend' run demo -- --check` passed: loopback catalogue API, comparison and built frontend with 100 fictional identities; no database or remote requests.
+- `git diff --check` passed. No dependencies added, real suppliers seeded, external data imported, production database migrated, hosting setting changed, commit made or push performed.
+- Local tools include PostgreSQL **16 only**; PostgreSQL 17, staging and live production compatibility were **not** validated. Software completion is not a deployment claim.
+- Current operator guide: `E:\ani-gadgets\docs\solo-catalogue.md`. Offline UI: build the frontend, run `npm --prefix 'E:\ani-gadgets\backend' run demo`, then open `http://127.0.0.1:4173/#catalogue`.
+
+## Production release request — 2026-09-20 (preflight; not deployed)
+
+- Owner requested production rollout. Revalidated all 42 backend tests on disposable PostgreSQL 16, all 19 frontend tests, production build and fixture-only Chrome smoke.
+- Remote main was confirmed at `b63aace`; GitHub authentication is available. Push is held until schema/API rollout is possible, because main triggers Vercel publication.
+- Live API health is OK and reports 999 available listings, but `/api/products/meta/sources` and `/api/catalogue` return 404: backend deployment is behind the frontend feature set.
+- Published frontend bundle contains `https://api.anigadgetsbd.app/api`, and live product requests allow the canonical `https://www.anigadgetsbd.app` origin. The new catalogue UI is not yet published. No Vercel API URL change is indicated by these checks.
+- The installed SSH key was initially rejected for the root login. The deployment was held for the correct non-root login. No password/private key was requested or printed.
+- Expanded the production verifier with read-only source filtering, catalogue response, private-table isolation and no-public-demo checks. No production data or configuration changed during preflight.
+- Access blocker subsequently resolved: the owner supplied the correct non-root deployment login; SSH and noninteractive sudo were verified. Deployment targets only the existing `/opt/anigadgets` stack. A disposable, network-isolated PostgreSQL 17 checker was added for fresh-schema and restored-backup upgrade validation before production migration.
+
+## Production rollout — 2026-09-20
+
+- Created `/var/backups/anigadgets/release-20260920-solo/database.dump`, a source archive and the rollback image `anigadgets-backend:pre-solo-20260920`. Restored the backup into a disposable network-isolated container: 1,000 listings, 999 available, aggregates/search/required fields passed.
+- PostgreSQL **17.11**: all **42 backend tests passed, zero skipped**, both on a fresh isolated database and on an isolated production-backup restore after applying schema/grants twice. Temporary containers were removed. This is a disposable staging rehearsal, not integration testing against production.
+- Applied additive schema and restricted grants to production with lock/statement timeouts, then deployed image `anigadgets-backend:solo-20260920` to the API only. Listing count and complete-row hash were identical before/after migration. Preserved database volume, credentials and TLS proxy.
+- Live read-only verifier passed: reader cannot access private tables or write listings; source filtering, pagination, metadata, statistics and reviewed-catalogue API work. 999 available listings; **zero published identities and zero public demo inventory**, intentionally awaiting manual curation. The production verifier ran 39 database-free tests, with all 3 integration tests intentionally skipped.
+- Ingestion timer was briefly paused for migration and restored automatically afterward; no unrelated application services changed. Frontend publication and final live-browser verification follow the API rollout.
+
+## Historical plan and publication log (superseded, retained for context)
 
 Approved direction: evolve AnimeGadgetsHub beyond Daraz without replacing the existing stack.
-Started: 2026-09-20. This is the current implementation plan; older roadmaps are historical proposals, not evidence of delivered features or validated demand.
+Started: 2026-09-20. The section below records the earlier implementation direction; the solo checklist above is now authoritative. Historical unchecked items are not current completion requirements.
 
 ## Product promise
 

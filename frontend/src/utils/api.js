@@ -82,9 +82,9 @@ export async function fetchProducts(filters = {}, { signal } = {}) {
 /**
  * Fetch single product by ID
  */
-export async function fetchProduct(id) {
+export async function fetchProduct(id, { signal } = {}) {
   try {
-    const response = await fetch(`${API_BASE_URL}/products/${id}`);
+    const response = await fetch(`${API_BASE_URL}/products/${id}`, { signal });
     const data = await handleResponse(response);
     return data.data;
   } catch (error) {
@@ -169,4 +169,14 @@ export async function fetchSources() {
     if (error instanceof ApiError) throw error;
     throw new ApiError('Network error. Please check your connection.', 0);
   }
+}
+
+export async function fetchCatalogue({ search = '', category = '', page = 1 } = {}, { signal } = {}) {
+  const params = new URLSearchParams({ search, category, limit: '20', offset: String((page - 1) * 20) });
+  return handleResponse(await fetch(`${API_BASE_URL}/catalogue?${params}`, { signal }));
+}
+
+export async function fetchCatalogueProduct(id, { signal } = {}) {
+  const result = await handleResponse(await fetch(`${API_BASE_URL}/catalogue/${id}`, { signal }));
+  return result.data;
 }

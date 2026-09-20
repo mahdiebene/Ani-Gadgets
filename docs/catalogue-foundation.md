@@ -1,5 +1,7 @@
 # Catalogue foundation: migration and boundaries
 
+> Historical Phase 2 schema notes. The solo upgrade now adds local curation, restricted operational roles, allowlisted public views, comparison routes/UI, saved items and local price targets. The current workflow and migration details are in `E:\ani-gadgets\docs\solo-catalogue.md`. Statements below about pending comparison/import activation describe the earlier foundation, not current code. No partner feed was added.
+
 The current implementation preserves the legacy listing API. It does **not** publish a comparison API, ingest a new merchant, or assert any authenticity guarantees.
 
 ## Data model

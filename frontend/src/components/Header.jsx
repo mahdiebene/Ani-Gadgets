@@ -73,6 +73,11 @@ function Header({ onSearch }) {
             )}
           </button>
         </div>
+        <nav aria-label="Main navigation" className="flex gap-5 pb-2 text-sm">
+          <a href="#discover" className="hover:underline">Discover</a>
+          <a href="#catalogue" className="hover:underline">Catalogue</a>
+          <a href="#saved" className="hover:underline">Saved items</a>
+        </nav>
       </div>
     </header>
   );

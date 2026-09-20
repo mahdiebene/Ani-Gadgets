@@ -1,3 +1,4 @@
+local-catalogue*.json
 # Dependencies
 node_modules/
 

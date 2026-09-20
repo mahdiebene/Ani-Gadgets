@@ -39,14 +39,14 @@ function Filters({ filters, onFilterChange, totalItems = 0 }) {
 
   async function loadFiltersData() {
     try {
-      const [categoriesData, animeData, sourcesData] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchCategories(),
         fetchAnimeNames(),
         fetchSources()
       ]);
-      setCategories(categoriesData);
-      setAnimeNames(animeData);
-      setSources(sourcesData);
+      if (results[0].status === 'fulfilled') setCategories(results[0].value);
+      if (results[1].status === 'fulfilled') setAnimeNames(results[1].value);
+      if (results[2].status === 'fulfilled') setSources(results[2].value);
     } catch (err) {
       console.error('Error loading filter data:', err);
     }

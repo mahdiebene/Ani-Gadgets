@@ -18,15 +18,22 @@ Anime merchandise discovery for Bangladesh: Daraz listings, prices in BDT, anime
 - Database and ingestion-freshness health checks.
 - Responsive React interface with light and dark themes.
 
-## Multi-source discovery and catalogue foundation
+## Solo discovery and comparison
 
 - Source-aware seller links and source filtering; existing Daraz ingestion is retained.
 - Header search reaches Browse, and saved listing IDs persist on the same browser.
 - Listing cards distinguish demand scores from authenticity, show observation freshness, and keep unknown prices explicit.
-- An additive, owner-only catalogue schema separates identities, merchants, offers, observations and evidence. Comparison/import activation is still pending; no new merchant partnerships are implied.
+- A private local JSON CLI curates reviewed identities, merchants, offers and reference notes; default dry-run needs no database. No new scraper, paid API, seller outreach or account service.
+- Read-only catalogue/detail pages compare complete, equivalent BDT offers while keeping deposits, missing costs, stale stock and foreign-currency estimates distinct.
+- Saved-items page, browser-local price targets, observation history and a buying checklist. No background notification promises or authenticity guarantees.
+- Restricted database roles and public-field projections preserve private notes and append-only observation history. Existing Daraz ingestion stays isolated and unchanged.
+- A 100-product fictional demo and disposable PostgreSQL checker exercise the workflow without real suppliers or external requests.
+
+Try it offline: build the frontend without a production API override, run `npm --prefix 'E:\ani-gadgets\backend' run demo`, then open `http://127.0.0.1:4173/#catalogue`. No database setup is needed for this demo.
 
 Current roadmap: [Implementation plan](https://github.com/mahdiebene/Ani-Gadgets/blob/main/plan.md).
 Migration and limitations: [Catalogue foundation](https://github.com/mahdiebene/Ani-Gadgets/blob/main/docs/catalogue-foundation.md).
+Local commands, import format and operation: [Solo catalogue guide](https://github.com/mahdiebene/Ani-Gadgets/blob/main/docs/solo-catalogue.md).
 
 Publishing these changes does not apply database migrations. Deploy schema, then API, then frontend; source filtering requires the matching `/api/products/meta/sources` endpoint. Production API configuration and live requests must be verified separately.
 

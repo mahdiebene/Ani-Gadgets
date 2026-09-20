@@ -242,4 +242,46 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS $$
 $$;
 REVOKE ALL ON FUNCTION public.product_metadata(), public.platform_statistics(integer) FROM PUBLIC;
 
+-- Solo curation is opt-in and independent of the legacy permission/feed fields.
+-- No feeds/images are fetched: published content is manually authored by the operator.
+ALTER TABLE public.catalogue_products ADD COLUMN IF NOT EXISTS curation_key text UNIQUE;
+ALTER TABLE public.catalogue_products ADD COLUMN IF NOT EXISTS published boolean NOT NULL DEFAULT false;
+ALTER TABLE public.catalogue_products ADD COLUMN IF NOT EXISTS is_demo boolean NOT NULL DEFAULT false;
+ALTER TABLE public.merchants ADD COLUMN IF NOT EXISTS curation_key text UNIQUE;
+ALTER TABLE public.merchants ADD COLUMN IF NOT EXISTS published boolean NOT NULL DEFAULT false;
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS curation_key text UNIQUE;
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS published boolean NOT NULL DEFAULT false;
+ALTER TABLE public.evidence_records ADD COLUMN IF NOT EXISTS curation_key text UNIQUE;
+
+-- Explicit allowlists: private reviewer, provenance and permission records never leave SQL.
+CREATE OR REPLACE VIEW public.catalogue_public WITH (security_barrier = true) AS
+  SELECT id, name, category, anime_name, manufacturer, product_line, manufacturer_code,
+    isbn, edition, variant, scale, language, volume, identity_reference_url, is_demo
+  FROM public.catalogue_products WHERE published AND identity_status = 'reviewed';
+CREATE OR REPLACE VIEW public.catalogue_offers_public WITH (security_barrier = true) AS
+  SELECT o.id, o.catalogue_product_id, o.listing_url, o.condition, o.included_parts,
+    o.purchase_route, m.name AS merchant_name, m.payment_policy_url, m.delivery_policy_url,
+    m.return_policy_url, n.observed_at, n.expires_at, n.currency, n.price_kind,
+    n.full_price, n.deposit_amount, n.shipping_amount, n.tax_amount, n.fee_amount,
+    n.ships_to_bangladesh, n.delivery_destination, n.availability,
+    n.preorder_release_at, n.preorder_terms
+  FROM public.offers o JOIN public.catalogue_public p ON p.id = o.catalogue_product_id
+  JOIN public.merchants m ON m.id = o.merchant_id AND m.published
+  LEFT JOIN LATERAL (SELECT * FROM public.offer_observations n WHERE n.offer_id = o.id
+    ORDER BY observed_at DESC, id DESC LIMIT 1) n ON true
+  WHERE o.published AND o.match_status = 'reviewed';
+CREATE OR REPLACE VIEW public.catalogue_history_public WITH (security_barrier = true) AS
+  SELECT n.offer_id, n.observed_at, n.expires_at, n.currency, n.price_kind, n.full_price,
+    n.deposit_amount, n.shipping_amount, n.tax_amount, n.fee_amount, n.availability
+  FROM public.offer_observations n JOIN public.catalogue_offers_public o ON o.id = n.offer_id;
+CREATE OR REPLACE VIEW public.catalogue_evidence_public WITH (security_barrier = true) AS
+  SELECT e.catalogue_product_id, e.offer_id, e.evidence_type, e.source_url, e.summary,
+    e.captured_at, e.expires_at
+  FROM public.evidence_records e WHERE e.review_status = 'reviewed'
+    AND e.captured_at <= now() AND (e.expires_at IS NULL OR e.expires_at > now())
+    AND (EXISTS (SELECT 1 FROM public.catalogue_public p WHERE p.id = e.catalogue_product_id)
+      OR EXISTS (SELECT 1 FROM public.catalogue_offers_public o WHERE o.id = e.offer_id));
+REVOKE ALL ON public.catalogue_public, public.catalogue_offers_public,
+  public.catalogue_history_public, public.catalogue_evidence_public FROM PUBLIC;
+
 COMMIT;

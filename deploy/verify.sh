@@ -39,7 +39,18 @@ const { createPool } = require('./src/db/pool');
     const anime = (await get('/api/products/meta/anime')).data;
     assert.ok(categories.includes(first.data[0].category));
     assert.ok(anime.includes(first.data[0].anime_name));
-    console.log(`Verified read-only credentials, health, pagination, stats and metadata: ${stats.totalProducts} available products.`);
+    const sources = (await get('/api/products/meta/sources')).data;
+    assert.ok(sources.includes('daraz'));
+    const daraz = await get('/api/products?limit=3&source=daraz');
+    assert.ok(daraz.data.length > 0 && daraz.data.every(product => product.source === 'daraz'));
+    const catalogue = await get('/api/catalogue?limit=1');
+    assert.ok(Array.isArray(catalogue.data) && Number.isInteger(catalogue.pagination.total));
+    const demos = await pool.query('SELECT count(*)::int AS count FROM public.catalogue_public WHERE is_demo');
+    assert.equal(demos.rows[0].count, 0, 'Production must not publish fictional demo inventory');
+    for (const table of ['catalogue_products', 'merchants', 'offers', 'offer_observations', 'evidence_records']) {
+      await assert.rejects(pool.query(`SELECT 1 FROM public.${table} LIMIT 0`), error => error.code === '42501');
+    }
+    console.log(`Verified read-only credentials, health, pagination, stats, source filtering and catalogue isolation: ${stats.totalProducts} available listings, ${catalogue.pagination.total} published identities.`);
   } finally { await pool.end(); }
 })().catch(error => { console.error(error.code || error.message); process.exitCode = 1; });
 NODE

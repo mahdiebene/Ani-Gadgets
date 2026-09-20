@@ -5,7 +5,7 @@ function parseSaved(raw) {
   try {
     const value = JSON.parse(raw);
     return Array.isArray(value)
-      ? [...new Set(value.filter(key => typeof key === 'string' && /^listing:[1-9]\d*$/.test(key)))].sort()
+      ? [...new Set(value.filter(key => typeof key === 'string' && /^(listing|catalogue):[1-9]\d*$/.test(key)))].sort()
       : [];
   } catch {
     return [];
@@ -61,7 +61,7 @@ export function createWishlistStore({ storage = () => globalThis.localStorage, e
       };
     },
     toggle(key) {
-      if (typeof key !== 'string' || !/^listing:[1-9]\d*$/.test(key)) return;
+      if (typeof key !== 'string' || !/^(listing|catalogue):[1-9]\d*$/.test(key)) return;
       if (!initialized) { initialized = true; read(); }
       const next = snapshot.includes(key) ? snapshot.filter(item => item !== key) : [...snapshot, key].sort();
       try { storage()?.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(next)); } catch { sessionOnly = true; }

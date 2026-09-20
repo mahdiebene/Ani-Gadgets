@@ -7,11 +7,22 @@ import Footer from './components/Footer';
 import BackToTop from './components/BackToTop';
 import { fetchStats, fetchCategories } from './utils/api';
 import { nextBrowseNavigation } from './utils/browse';
+import CataloguePage, { CatalogueDetail } from './components/CataloguePage';
+import SavedPage from './components/SavedPage';
 
 function App() {
   const [stats, setStats] = useState(null);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const navigate = () => { setHash(window.location.hash); window.scrollTo(0, 0); };
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
+  }, []);
+  const detailId = /^#catalogue\/([1-9]\d*)$/.exec(hash)?.[1];
+  const catalogueView = hash === '#catalogue' || detailId;
+  const savedView = hash === '#saved';
   
   // Page state: 'home' or 'browse'
   const [currentView, setCurrentView] = useState('home');
@@ -70,6 +81,7 @@ function App() {
   // Handle search
   function handleSearch(searchTerm) {
     if (searchTerm.trim()) {
+      window.location.hash = 'discover';
       setActiveCategory('All');
       setBrowseConfig(previous => nextBrowseNavigation(previous, { search: searchTerm }));
       setCurrentView('browse');
@@ -87,7 +99,7 @@ function App() {
       <Header onSearch={handleSearch} />
       
       {/* Hero with category pills - only show on home */}
-      {currentView === 'home' && (
+      {!catalogueView && !savedView && currentView === 'home' && (
         <Hero 
           stats={stats} 
           categories={categories}
@@ -97,7 +109,7 @@ function App() {
       )}
       
       <main>
-        {currentView === 'home' ? (
+        {detailId ? <CatalogueDetail key={detailId} id={detailId} /> : catalogueView ? <CataloguePage /> : savedView ? <SavedPage /> : currentView === 'home' ? (
           <HomePage 
             onViewCategory={handleViewCategory}
             onViewAnime={handleViewAnime}
