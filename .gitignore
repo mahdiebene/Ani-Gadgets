@@ -5,6 +5,16 @@ node_modules/
 .env
 .env.local
 .env.production
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+secrets/
+*.dump
+*.sql.gz
+*.tar.gz
 
 # Build outputs
 dist/
@@ -31,8 +41,3 @@ coverage/
 # Temp files
 *.tmp
 *.temp
-
-# Bots (will be added separately)
-bots/
-scrapers/
-backend/src/bot/

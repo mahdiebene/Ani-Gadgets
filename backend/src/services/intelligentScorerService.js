@@ -1,31 +1,28 @@
 /**
- * Layer 4: Intelligent Filtering & Ranking System v2.0
+ * Intelligent Filtering & Ranking System v3
  * 
  * PHILOSOPHY: "Real Demand Trumps Theoretical Popularity"
  * 
- * Products with ACTUAL sales evidence (reviews, high ratings) should 
- * ALWAYS rank higher than products that are merely from popular anime
- * but have zero proof of demand.
+ * Actual units sold are the primary demand signal; reviews support that evidence.
+ * Popular anime alone must not lift unproven products above proven demand.
  * 
  * SCORING FORMULA (Revised):
  * ============================================================
  * BASE SCORE (Max 100):
- *   - Sales Evidence (40 pts)     <- PRIMARY: Reviews + Ratings
+ *   - Sales Evidence (40 pts)     <- Sold (25) + Reviews (10) + Rating (5)
  *   - Anime Popularity (25 pts)   <- Boost for popular anime
- *   - Product Appeal (15 pts)     <- Figures > Posters > etc
+ *   - Product Appeal (15 pts)     <- Type (10) + Stock (2) + Dhaka (3)
  *   - Value Score (15 pts)        <- Price + Discounts
- *   - Freshness (5 pts)           <- Recency bonus
+ *   - Freshness (5 pts)           <- First seen, never last scraped
  * 
  * CRITICAL PENALTIES:
- *   - Zero Reviews: HARD CAP at 45 points maximum
- *   - Zero Rating: Additional -5 penalty
- *   - Very Low Reviews (<3): Cap at 50 points
- * 
- * This ensures that a Death Note figure with 0 reviews (was scoring 71)
- * now caps at 45, while a generic product with 50+ reviews scores 75+.
+ *   - No sales or reviews: cap at 40; no unsupported rating credit.
+ *   - Sales evidence can lift review-based caps (10 sold = 1 review for caps).
+ *   - No age-based availability changes. Browse can show below-threshold items.
  */
 
 const { POPULAR_ANIME_BD } = require('../config/bdAnimeConfig');
+const DISPLAY_MIN_SCORE = 45;
 
 // Create anime lookup map for quick access
 const ANIME_LOOKUP = new Map();
@@ -52,7 +49,7 @@ const WEIGHTS = {
 
 // ============================================================
 // COMPONENT 1: SALES EVIDENCE (0-40 points)
-// This is the KING. No reviews = low score.
+// Sold units lead; reviews and ratings support the demand evidence.
 // ============================================================
 function calculateSalesEvidenceScore(product) {
   let score = 0;
@@ -61,8 +58,7 @@ function calculateSalesEvidenceScore(product) {
   const reviewCount = product.reviews_count || product.reviewsCount || 0;
   const rating = product.rating || 0;
   
-  // 1A. REVIEW COUNT (0-25 points)
-  // This is the most important single factor
+  // Review tiers below are scaled to 10 points after calculation.
   if (reviewCount >= 200) {
     score += 25;
     signals.push('⭐ Bestseller (200+ reviews)');
@@ -89,23 +85,29 @@ function calculateSalesEvidenceScore(product) {
     signals.push('⚠️ No reviews yet');
   }
   
-  // 1B. RATING QUALITY (0-15 points)
+  score = score / 25 * 10;
+  const unitsSold = Math.max(0, Number(product.units_sold) || 0);
+  const soldScore = unitsSold >= 400 ? 25 : unitsSold >= 100 ? 22
+    : unitsSold >= 50 ? 18 : unitsSold >= 20 ? 14 : unitsSold >= 5 ? 8 : unitsSold > 0 ? 4 : 0;
+  score += soldScore;
+  signals.unshift(`${unitsSold} units sold`);
+  // Rating tiers are scaled to 5 points, only with supporting reviews.
   // Only give points if there are reviews to back it up
   if (reviewCount > 0) {
     if (rating >= 4.8) {
-      score += 15;
+      score += 5;
       signals.push('Outstanding rating (4.8+)');
     } else if (rating >= 4.5) {
-      score += 12;
+      score += 4;
       signals.push('Excellent rating (4.5+)');
     } else if (rating >= 4.0) {
-      score += 9;
+      score += 3;
       signals.push('Good rating (4.0+)');
     } else if (rating >= 3.5) {
-      score += 5;
+      score += 2;
       signals.push('Average rating (3.5+)');
     } else if (rating >= 3.0) {
-      score += 2;
+      score += 1;
       signals.push('Below average rating');
     } else {
       score += 0;
@@ -122,9 +124,10 @@ function calculateSalesEvidenceScore(product) {
     reason: signals[0],
     details: {
       reviewCount,
+      unitsSold,
       rating,
       signals,
-      hasProvenDemand: reviewCount >= 5
+      hasProvenDemand: unitsSold >= 20 || reviewCount >= 5
     }
   };
 }
@@ -250,11 +253,11 @@ function calculateProductAppealScore(product) {
   const hypeCharacters = [
     'gojo', 'sukuna', 'levi', 'eren', 'goku', 'vegeta', 
     'naruto', 'sasuke', 'itachi', 'kakashi', 'luffy', 'zoro',
-    'tanjiro', 'nezuko', 'anya', 'makima', 'power'
+    'tanjiro', 'nezuko', 'anya', 'makima'
   ];
   
   for (const char of hypeCharacters) {
-    if (nameLower.includes(char)) {
+    if (new RegExp(`\\b${char}\\b`).test(nameLower)) {
       // Small boost for hyped characters, don't exceed max
       score = Math.min(WEIGHTS.PRODUCT_APPEAL, score + 2);
       signals.push(`Features ${char}`);
@@ -262,6 +265,9 @@ function calculateProductAppealScore(product) {
     }
   }
 
+  score = score / 15 * 10;
+  if (product.in_stock === true) { score += 2; signals.push('In stock'); }
+  if (/\bdhaka\b/i.test(product.location || '')) { score += 3; signals.push('Ships from Dhaka'); }
   return {
     score: Math.min(WEIGHTS.PRODUCT_APPEAL, score),
     maxScore: WEIGHTS.PRODUCT_APPEAL,
@@ -284,7 +290,9 @@ function calculateValueScore(product) {
   
   // 4A. Price tier (0-10 points)
   // Lower prices are more accessible in BD market
-  if (price > 0 && price <= 300) {
+  if (price <= 0) {
+    signals.push('Price unavailable');
+  } else if (price <= 300) {
     score += 10;
     signals.push('Budget-friendly (≤৳300)');
   } else if (price <= 500) {
@@ -349,10 +357,11 @@ function calculateValueScore(product) {
 // Newer listings get a small boost
 // ============================================================
 function calculateFreshnessScore(product) {
-  const scrapedAt = product.scraped_at || product.scrapedAt || product.created_at || new Date().toISOString();
-  const scrapedDate = new Date(scrapedAt);
+  const firstSeen = product.first_seen_at || product.created_at;
+  const firstSeenDate = new Date(firstSeen);
   const now = new Date();
-  const daysSinceScraped = (now - scrapedDate) / (1000 * 60 * 60 * 24);
+  const daysSinceScraped = Number.isFinite(firstSeenDate.getTime())
+    ? Math.max(0, (now - firstSeenDate) / (1000 * 60 * 60 * 24)) : Infinity;
 
   let score = 0;
   let reason = '';
@@ -381,7 +390,7 @@ function calculateFreshnessScore(product) {
     score,
     maxScore: WEIGHTS.FRESHNESS,
     reason,
-    details: { daysSinceScraped: Math.round(daysSinceScraped) }
+    details: { daysSinceFirstSeen: Number.isFinite(daysSinceScraped) ? Math.round(daysSinceScraped) : null }
   };
 }
 
@@ -393,6 +402,7 @@ function calculateIntelligentTrendingScore(product, animeMatch = null) {
   const animeName = product.anime_name || product.animeName || animeMatch?.name || 'Unknown';
   const reviewCount = product.reviews_count || product.reviewsCount || 0;
   const rating = product.rating || 0;
+  const demandCount = Math.max(reviewCount, Math.floor((product.units_sold || 0) / 10));
 
   // Calculate all 5 components
   const salesEvidence = calculateSalesEvidenceScore(product);
@@ -418,30 +428,29 @@ function calculateIntelligentTrendingScore(product, animeMatch = null) {
   let penaltyAmount = 0;
   let scoreCap = 100;
   
-  // PENALTY 1: Zero reviews = HARD CAP at 55 (was 45, but BD market has few reviews)
-  // This still ensures products WITH reviews always rank higher
-  if (reviewCount === 0) {
-    scoreCap = 55;
-    penalties.push('No reviews: max score capped at 55');
+  // Sales can substantiate demand even when buyers leave no reviews.
+  if (demandCount === 0) {
+    scoreCap = 40;
+    penalties.push('No proven demand: max score capped at 40');
   }
   // PENALTY 2: Very few reviews (1-2) = Cap at 65
-  else if (reviewCount < 3) {
+  else if (demandCount < 3) {
     scoreCap = 65;
-    penalties.push('Very few reviews: max score capped at 65');
+    penalties.push('Limited demand evidence: max score capped at 65');
   }
   // PENALTY 3: Few reviews (3-4) = Cap at 75
-  else if (reviewCount < 5) {
+  else if (demandCount < 5) {
     scoreCap = 75;
-    penalties.push('Few reviews: max score capped at 75');
+    penalties.push('Some demand evidence: max score capped at 75');
   }
   // PENALTY 4: Moderate reviews (5-9) = Cap at 85
-  else if (reviewCount < 10) {
+  else if (demandCount < 10) {
     scoreCap = 85;
   }
   // 10+ reviews = No cap, can reach 100
   
   // PENALTY 5: No rating despite having product = -3 (reduced from -5)
-  if (rating === 0 && reviewCount === 0) {
+  if (rating === 0 && demandCount === 0) {
     penaltyAmount += 3;
     penalties.push('No rating data: -3');
   }
@@ -449,6 +458,7 @@ function calculateIntelligentTrendingScore(product, animeMatch = null) {
   // Apply cap and penalties
   let finalScore = Math.min(rawTotal, scoreCap) - penaltyAmount;
   finalScore = Math.max(0, Math.min(100, finalScore)); // Ensure 0-100 range
+  finalScore = Math.round(finalScore);
 
   // Determine trending status based on FINAL score
   let trendingStatus = 'not-trending';
@@ -463,7 +473,7 @@ function calculateIntelligentTrendingScore(product, animeMatch = null) {
   } else if (finalScore >= 60) {
     trendingStatus = 'rising';
     trendingLabel = '⬆️ Rising';
-  } else if (finalScore >= 45) {
+  } else if (finalScore >= DISPLAY_MIN_SCORE) {
     trendingStatus = 'moderate';
     trendingLabel = '➡️ Moderate';
   } else {
@@ -472,7 +482,7 @@ function calculateIntelligentTrendingScore(product, animeMatch = null) {
   }
 
   // Only display products with 45+ score
-  const shouldDisplay = finalScore >= 45;
+  const shouldDisplay = finalScore >= DISPLAY_MIN_SCORE && product.in_stock !== false;
 
   return {
     totalScore: Math.round(finalScore),
@@ -537,7 +547,9 @@ function generateExplanation(score, reviewCount, rating, salesEvidence, animePop
   const parts = [];
   
   // Lead with sales evidence (most important)
-  if (reviewCount >= 50) {
+  if (salesEvidence.details.unitsSold > 0) {
+    parts.push(`${salesEvidence.details.unitsSold} units sold`);
+  } else if (reviewCount >= 50) {
     parts.push('Bestseller with 50+ reviews');
   } else if (reviewCount >= 20) {
     parts.push('Popular product (20+ reviews)');
@@ -571,7 +583,7 @@ function generateExplanation(score, reviewCount, rating, salesEvidence, animePop
   }
   
   // Combine naturally
-  if (reviewCount === 0) {
+  if (reviewCount === 0 && salesEvidence.details.unitsSold === 0) {
     return `${parts[0]} - score limited until customer reviews come in`;
   }
   
@@ -592,7 +604,7 @@ function scoreProducts(products) {
       should_display: scoreData.shouldDisplay,
       score_breakdown: scoreData.breakdown,
       score_explanation: scoreData.explanation,
-      score_version: '2.0',
+      score_version: 3,
       penalties_applied: scoreData.penalties
     };
   });
@@ -601,7 +613,7 @@ function scoreProducts(products) {
 /**
  * Filter products to only show quality ones (45+)
  */
-function filterTrendingProducts(products, minScore = 45) {
+function filterTrendingProducts(products, minScore = DISPLAY_MIN_SCORE) {
   const scored = scoreProducts(products);
   return scored
     .filter(p => p.intelligent_score >= minScore)
@@ -610,6 +622,8 @@ function filterTrendingProducts(products, minScore = 45) {
 
 // Legacy exports for backwards compatibility
 module.exports = {
+  DISPLAY_MIN_SCORE,
+  WEIGHTS,
   calculateIntelligentTrendingScore,
   calculateSalesEvidenceScore,
   calculateAnimePopularityScore,

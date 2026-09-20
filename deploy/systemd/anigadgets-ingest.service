@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh AnimeGadgets Daraz catalogue
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/anigadgets
+ExecStart=/usr/bin/docker compose -f /opt/anigadgets/deploy/compose.yml run --rm --no-deps ingest
+TimeoutStartSec=25min

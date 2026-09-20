@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily AnimeGadgets database backup
+
+[Timer]
+OnCalendar=*-*-* 03:43:00 UTC
+Persistent=true
+Unit=anigadgets-backup.service
+
+[Install]
+WantedBy=timers.target

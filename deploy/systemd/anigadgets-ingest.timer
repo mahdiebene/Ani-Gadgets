@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh AnimeGadgets every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:17:00 UTC
+RandomizedDelaySec=120
+Persistent=true
+Unit=anigadgets-ingest.service
+
+[Install]
+WantedBy=timers.target

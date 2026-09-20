@@ -1,101 +1,23 @@
 # AnimeGadgetsHub
 
-**Version 1.0.0** | Bangladesh's Anime Merchandise Discovery Platform
+Anime merchandise discovery for Bangladesh: Daraz listings, prices in BDT, anime/category filters, and explainable demand-based ranking. No accounts, affiliate links or monetization.
 
-Discover trending anime merchandise in Bangladesh. A curated platform that uses intelligent scoring to surface the best anime gadgets from Daraz.
+## Stack
+
+- React 18, Vite and Tailwind frontend; Express API on Node 22/24.
+- Self-hosted PostgreSQL 17 and Express API using Docker Compose.
+- Daraz catalogue JSON ingestion with bounded requests, retries, polite delays, normalization, anime matching, scoring and transactional upserts.
+- Read-only API database role; separate ingestion writer; secrets stored outside the repository.
+- Six-hour ingestion and daily local backups via systemd timers. Honest database/freshness health checks.
 
 ## Features
 
-- **Intelligent Scoring** - Products scored 0-100 based on anime popularity, sales signals, and freshness
-- **Curated Homepage** - Trending products, categories, and anime-specific sections
-- **Smart Filtering** - Filter by category, anime series, price range
-- **Dark/Light Mode** - Theme switching with system preference support
-- **Mobile-First Design** - Optimized for mobile users
-
-## Tech Stack
-
-- **Frontend:** React 18 + Vite + Tailwind CSS
-- **Backend:** Node.js + Express
-- **Database:** Supabase (PostgreSQL)
-
-## Project Structure
-
-```
-Ani-Gadgets/
-├── frontend/                 # React application
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── context/         # Theme context
-│   │   ├── utils/           # Helper functions & API
-│   │   └── App.jsx          # Main app component
-│   └── package.json
-│
-├── backend/                  # Express API
-│   ├── src/
-│   │   ├── routes/          # API endpoints
-│   │   ├── services/        # Business logic
-│   │   └── db/              # Database connection
-│   └── package.json
-│
-└── README.md
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Supabase account
-
-### 1. Backend Setup
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-# Edit .env with your Supabase credentials
-npm run dev
-```
-
-### 2. Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## API Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/products` | Get products with filtering & pagination |
-| `GET /api/products/:id` | Get single product |
-| `GET /api/anime` | Get anime list |
-| `GET /api/categories` | Get category list |
-| `GET /api/stats` | Get platform statistics |
-
-## Scoring Algorithm
-
-Products are scored 0-100 based on:
-
-- **Anime Popularity (50%)** - MAL score + member count
-- **Product Signals (35%)** - Reviews, ratings, discounts
-- **Freshness (15%)** - How recently scraped
-
-Only products scoring **60+** are displayed.
+- Daraz merchandise with prices in BDT, anime/category filters and paginated search.
+- Explainable 100-point ranking based on sales evidence, anime popularity, product appeal, value and first-seen recency.
+- Transactional catalogue refreshes that preserve existing data on failure.
+- Database and ingestion-freshness health checks.
+- Responsive React interface with light and dark themes.
 
 ## License
 
 MIT
-
-MIT
-
-## Contributing
-
-Pull requests welcome!
-
----
-
-Made with ❤️ for anime fans in Bangladesh

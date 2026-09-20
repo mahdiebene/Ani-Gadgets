@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api';
 
 /**
  * Custom error class for API errors
@@ -61,7 +61,7 @@ export async function fetchProducts(filters = {}) {
     
     // Return paginated response
     const products = data.data || [];
-    const total = data.total || data.count || products.length;
+    const total = data.pagination?.total ?? data.total ?? data.count ?? products.length;
     
     return {
       products,

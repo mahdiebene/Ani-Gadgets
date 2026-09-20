@@ -1,0 +1,24 @@
+# Optional, separate stack: start only after DNS and exclusive port 443 are verified.
+name: anigadgets-tls
+services:
+  proxy:
+    image: caddy:2-alpine@sha256:de23def33b17fb5d1290b0f6c2add1d70780e52341896c00a4c8a2a2fe9d355e
+    restart: unless-stopped
+    # The API is deliberately reachable only via host loopback.
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+    read_only: true
+    tmpfs: ['/config:size=1m', '/tmp:size=16m']
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+volumes:
+  certificates: {}

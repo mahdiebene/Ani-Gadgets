@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up AnimeGadgets PostgreSQL
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/anigadgets/deploy/backup.sh
+TimeoutStartSec=10min

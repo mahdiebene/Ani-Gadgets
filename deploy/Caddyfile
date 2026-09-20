@@ -1,0 +1,29 @@
+{
+	admin off
+	persist_config off
+	# Port 80 belongs to another application on this VPS.
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+https://api.anigadgetsbd.app {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+	}
+	reverse_proxy 127.0.0.1:18083 {
+		# Exactly one trusted hop; never accept a caller's claimed client IP.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Host {host}
+		header_up -Forwarded
+		header_up -X-Real-IP
+	}
+}

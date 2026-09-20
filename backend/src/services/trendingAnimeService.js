@@ -1,5 +1,5 @@
 const axios = require('axios');
-const supabase = require('../db/supabase');
+const { matchAnime } = require('../ingest/animeMatcher');
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 const DELAY_BETWEEN_REQUESTS = 1000; // Jikan API rate limit: 3 requests/second
@@ -17,6 +17,7 @@ async function fetchTopAiringAnime(limit = 25) {
     console.log('📺 Fetching top airing anime from MyAnimeList...');
     
     const response = await axios.get(`${JIKAN_BASE_URL}/top/anime`, {
+      timeout: 20000,
       params: {
         filter: 'airing',
         limit: limit
@@ -55,6 +56,7 @@ async function fetchPopularAnime(limit = 15) {
     await sleep(DELAY_BETWEEN_REQUESTS);
     
     const response = await axios.get(`${JIKAN_BASE_URL}/top/anime`, {
+      timeout: 20000,
       params: {
         filter: 'bypopularity',
         limit: limit
@@ -86,19 +88,18 @@ async function fetchPopularAnime(limit = 15) {
 /**
  * Save anime to database (upsert)
  */
-async function saveAnimeToDatabase(animeList) {
+async function saveAnimeToDatabase(animeList, db) {
   console.log(`💾 Saving ${animeList.length} anime to database...`);
 
   const results = { success: 0, failed: 0 };
 
   for (const anime of animeList) {
     try {
-      const { error } = await supabase
-        .from('trending_anime')
-        .upsert({
+      await db.upsertAnime({
           mal_id: anime.mal_id,
           title: anime.title,
           title_english: anime.title_english,
+          anime_name: matchAnime(anime.title_english || anime.title)?.name || anime.title,
           image_url: anime.image_url,
           score: anime.score,
           members: anime.members,
@@ -107,16 +108,8 @@ async function saveAnimeToDatabase(animeList) {
           season: anime.season,
           year: anime.year,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'mal_id'
         });
-
-      if (error) {
-        console.error(`Failed to save ${anime.title}:`, error.message);
-        results.failed++;
-      } else {
-        results.success++;
-      }
+      results.success++;
     } catch (err) {
       console.error(`Error saving ${anime.title}:`, err.message);
       results.failed++;
@@ -124,6 +117,7 @@ async function saveAnimeToDatabase(animeList) {
   }
 
   console.log(`✅ Saved: ${results.success}, Failed: ${results.failed}`);
+  if (results.failed) throw new Error(`Failed to save ${results.failed} anime records`);
   return results;
 }
 
@@ -154,7 +148,7 @@ function generateSearchKeywords(anime) {
 /**
  * Main function to update trending anime
  */
-async function updateTrendingAnime() {
+async function updateTrendingAnime(db) {
   console.log('🚀 Starting trending anime update...');
   console.log('⏰ Time:', new Date().toISOString());
 
@@ -175,7 +169,7 @@ async function updateTrendingAnime() {
     console.log(`📊 Total unique anime: ${allAnime.length}`);
 
     // Save to database
-    const results = await saveAnimeToDatabase(allAnime);
+    const results = await db.transaction(store => saveAnimeToDatabase(allAnime, store));
 
     console.log('✅ Trending anime update complete!');
     return {
@@ -186,23 +180,15 @@ async function updateTrendingAnime() {
     };
   } catch (error) {
     console.error('❌ Failed to update trending anime:', error.message);
-    return {
-      success: false,
-      error: error.message
-    };
+    throw error;
   }
 }
 
 /**
  * Get all trending anime from database with search keywords
  */
-async function getTrendingAnimeWithKeywords() {
-  const { data, error } = await supabase
-    .from('trending_anime')
-    .select('*')
-    .order('popularity_rank', { ascending: true });
-
-  if (error) throw error;
+async function getTrendingAnimeWithKeywords(db) {
+  const data = await db.listAnime({ limit: 1000 });
   
   // Handle empty database case
   if (!data || data.length === 0) {

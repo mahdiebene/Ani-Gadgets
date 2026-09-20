@@ -1,0 +1,91 @@
+name: anigadgets
+services:
+  database:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: anigadgets
+      POSTGRES_USER: anigadgets_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets:
+      - db_admin_password
+      - db_reader_password
+      - db_writer_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/db/schema.sql:/opt/anigadgets/schema.sql:ro
+      - ./roles.sql:/opt/anigadgets/roles.sql:ro
+      - ./init-db.sh:/docker-entrypoint-initdb.d/10-anigadgets.sh:ro
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U anigadgets_owner -d anigadgets']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+  api:
+    build: ../backend
+    image: anigadgets-backend:local
+    restart: unless-stopped
+    init: true
+    depends_on:
+      database:
+        condition: service_healthy
+    env_file:
+      - path: /etc/anigadgets/api.env
+        required: false
+    environment:
+      PGHOST: database
+      PGDATABASE: anigadgets
+      PGUSER: anigadgets_reader
+      PGPASSWORD_FILE: /run/secrets/db_reader_password
+    secrets: [db_reader_password]
+    # No public API/database port. A separately configured TLS proxy reaches this.
+    ports: ['127.0.0.1:18083:3001']
+    networks: [database, outbound]
+    read_only: true
+    tmpfs: ['/tmp:size=16m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    logging: *logging
+  ingest:
+    image: anigadgets-backend:local
+    profiles: [jobs]
+    init: true
+    depends_on:
+      database:
+        condition: service_healthy
+    command: [node, src/ingest/run.js]
+    environment:
+      PGHOST: database
+      PGDATABASE: anigadgets
+      PGUSER: anigadgets_writer
+      PGPASSWORD_FILE: /run/secrets/db_writer_password
+    secrets: [db_writer_password]
+    networks: [database, outbound]
+    read_only: true
+    tmpfs: ['/tmp:size=16m']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    logging: *logging
+networks:
+  database:
+    internal: true
+  outbound: {}
+volumes:
+  postgres_data: {}
+secrets:
+  db_admin_password:
+    file: /etc/anigadgets/db_admin_password
+  db_reader_password:
+    file: /etc/anigadgets/db_reader_password
+  db_writer_password:
+    file: /etc/anigadgets/db_writer_password

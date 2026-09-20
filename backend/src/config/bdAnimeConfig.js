@@ -220,47 +220,10 @@ function generateBDSearchKeywords() {
 
 /**
  * Get anime info from search result product name
- * Uses fuzzy matching to detect which anime a product belongs to
+ * Compatibility entry point; matching is maintained in ingest/animeMatcher.
  */
 function detectAnimeFromProductName(productName) {
-  const nameLower = productName.toLowerCase();
-  
-  for (const anime of POPULAR_ANIME_BD) {
-    // Check anime aliases
-    for (const alias of anime.aliases) {
-      if (nameLower.includes(alias.toLowerCase())) {
-        return {
-          name: anime.name,
-          matched: alias,
-          priority: anime.priority
-        };
-      }
-    }
-    
-    // Check character names
-    for (const character of anime.characters) {
-      if (nameLower.includes(character.toLowerCase())) {
-        return {
-          name: anime.name,
-          matched: character,
-          priority: anime.priority,
-          character
-        };
-      }
-    }
-  }
-  
-  // Check for generic anime keywords
-  if (nameLower.includes('anime') || nameLower.includes('manga') || 
-      nameLower.includes('japanese') || nameLower.includes('otaku')) {
-    return {
-      name: 'Anime',
-      matched: 'generic',
-      priority: 5
-    };
-  }
-  
-  return null;
+  return require('../ingest/animeMatcher').matchAnime(productName);
 }
 
 module.exports = {
