@@ -37,12 +37,13 @@ async function handleResponse(response) {
 /**
  * Fetch trending products with filters and pagination
  */
-export async function fetchProducts(filters = {}) {
+export async function fetchProducts(filters = {}, { signal } = {}) {
   const params = new URLSearchParams();
   
   if (filters.search) params.append('search', filters.search);
   if (filters.category) params.append('category', filters.category);
   if (filters.anime) params.append('anime', filters.anime);
+  if (filters.source) params.append('source', filters.source);
   if (filters.minPrice) params.append('minPrice', filters.minPrice);
   if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
   if (filters.sortBy) params.append('sortBy', filters.sortBy);
@@ -56,7 +57,7 @@ export async function fetchProducts(filters = {}) {
   params.append('offset', String((page - 1) * limit));
 
   try {
-    const response = await fetch(`${API_BASE_URL}/products?${params}`);
+    const response = await fetch(`${API_BASE_URL}/products?${params}`, { signal });
     const data = await handleResponse(response);
     
     // Return paginated response
@@ -70,7 +71,7 @@ export async function fetchProducts(filters = {}) {
       currentPage: page
     };
   } catch (error) {
-    if (error instanceof ApiError) {
+    if (error.name === 'AbortError' || error instanceof ApiError) {
       throw error;
     }
     // Network error
@@ -154,6 +155,18 @@ export async function fetchAnimeNames() {
     if (error instanceof ApiError) {
       throw error;
     }
+    throw new ApiError('Network error. Please check your connection.', 0);
+  }
+}
+
+/** Fetch the actual available sources; no unconfirmed partners are seeded. */
+export async function fetchSources() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/products/meta/sources`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError('Network error. Please check your connection.', 0);
   }
 }

@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { ExternalLink, Star, Heart } from 'lucide-react';
 import ProductImage from './ProductImage';
-import { formatPrice, truncateText, calculateDiscount } from '../utils/helpers';
+import { formatPrice, truncateText, calculateDiscount, formatRelativeTime } from '../utils/helpers';
+import { sourceLabel, purchaseLink, listingKey } from '../utils/listings';
+import { wishlistStore } from '../utils/wishlist';
 
 function ProductCard({ product, compact = false }) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const saved = useSyncExternalStore(wishlistStore.subscribe, wishlistStore.getSnapshot, wishlistStore.getServerSnapshot);
+  const key = listingKey(product);
+  const isWishlisted = saved.includes(key);
+  const link = purchaseLink(product);
+  const observedAt = product.last_seen_at || product.scraped_at;
   const discount = calculateDiscount(product.original_price, product.price);
-  const score = product.intelligent_score || product.trending_score || 0;
+  const score = product.intelligent_score ?? product.trending_score;
   
   const getScoreStyle = (score) => {
     if (score >= 80) return 'bg-red-500';
@@ -28,21 +34,25 @@ function ProductCard({ product, compact = false }) {
         />
         
         {/* Score Badge */}
-        <div className={`absolute top-2 right-2 ${getScoreStyle(score)} 
+        {score != null && <div title="Demand score, not an authenticity or quality rating" className={`absolute top-2 right-2 ${getScoreStyle(score)}
                         text-white text-xs font-semibold px-1.5 py-0.5 rounded-sm`}>
-          {Math.round(score)}
-        </div>
+          Demand {Math.round(score)}
+        </div>}
 
         {/* Wishlist Button */}
         <button
           onClick={(e) => {
             e.preventDefault();
-            setIsWishlisted(!isWishlisted);
+            wishlistStore.toggle(key);
           }}
+          disabled={!key}
+          aria-label={isWishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
+          aria-pressed={isWishlisted}
+          title="Saved on this browser; unavailable storage means session-only saving"
           className={`absolute top-2 left-2 p-1 rounded-sm transition-all duration-150
                      ${isWishlisted 
                        ? 'bg-red-500 text-white' 
-                       : 'bg-black/40 text-white/80 hover:bg-black/60 opacity-0 group-hover:opacity-100'
+                        : 'bg-black/40 text-white/80 hover:bg-black/60'
                      }`}
         >
           <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
@@ -72,6 +82,12 @@ function ProductCard({ product, compact = false }) {
           {truncateText(product.name, compact ? 40 : 55)}
         </h3>
 
+        <div className="text-[10px] text-[var(--color-text-muted)] mb-2 space-y-1">
+          <p>{sourceLabel(product.source)}{product.seller_name ? ` · ${product.seller_name}` : ''}</p>
+          <p>Last seen: {formatRelativeTime(observedAt)}</p>
+          <p>Authenticity not reviewed</p>
+        </div>
+
         {/* Rating */}
         {!compact && (product.rating ?? 0) > 0 && (
           <div className="flex items-center gap-1 text-xs mb-2">
@@ -88,15 +104,17 @@ function ProductCard({ product, compact = false }) {
             <span className={`font-bold text-[var(--color-text-primary)] ${compact ? 'text-sm' : 'text-base'}`}>
               {formatPrice(product.price)}
             </span>
-            {product.original_price > product.price && (
+            {product.price != null && product.original_price > product.price && (
               <span className="text-[10px] text-[var(--color-text-muted)] line-through">
                 {formatPrice(product.original_price)}
               </span>
             )}
           </div>
 
-          <a
-            href={product.product_url}
+          <p className="text-[10px] text-[var(--color-text-muted)] mb-2">Listed price; delivery and final total unconfirmed.</p>
+
+          {link ? <a
+            href={link.href}
             target="_blank"
             rel="noopener noreferrer"
             className={`flex items-center justify-center gap-1.5 w-full 
@@ -105,8 +123,8 @@ function ProductCard({ product, compact = false }) {
                      ${compact ? 'text-xs py-1.5' : 'text-sm py-2'}`}
           >
             <ExternalLink className="w-3 h-3" />
-            View on Daraz
-          </a>
+            {link.label}
+          </a> : <p className="text-xs text-[var(--color-text-muted)]">Purchase link unavailable</p>}
         </div>
       </div>
     </article>

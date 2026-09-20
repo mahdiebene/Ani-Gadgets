@@ -8,13 +8,21 @@ test('SQL uses parameters for every filter and allowlists ordering identifiers',
     calls.push({ text, values }); return { rows: [{ products: [], total: 1100 }] };
   } });
   const malicious = "Naruto'); DROP TABLE products; --";
-  await db.listProducts({ search: malicious, category: malicious, anime: malicious, minScore: 45,
+  await db.listProducts({ search: malicious, category: malicious, anime: malicious, source: malicious, minScore: 45,
     minPrice: 100, maxPrice: 2000, limit: 20, offset: 100, sortBy: malicious, sortOrder: malicious });
   assert.equal(calls[0].text.includes(malicious), false);
   assert.match(calls[0].text, /ORDER BY intelligent_score DESC NULLS LAST, id ASC/);
   assert.ok(calls[0].values.includes(malicious));
   assert.deepEqual(calls[0].values.slice(-2), [20, 100]);
   assert.match(calls[0].text, /websearch_to_tsquery/);
+  assert.match(calls[0].text, /p\.source = \$\d+/);
+});
+
+test('trending sort is explicitly allowed rather than silently falling back', async () => {
+  let sql;
+  const db = createRepository({ query: async text => { sql = text; return { rows: [{}] }; } });
+  await db.listProducts({ sortBy: 'trending_score' });
+  assert.match(sql, /ORDER BY trending_score DESC NULLS LAST, id ASC/);
 });
 
 test('upsert uses fixed columns and parameters, preserving first seen on conflict', async () => {

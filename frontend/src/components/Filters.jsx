@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react';
-import { fetchCategories, fetchAnimeNames } from '../utils/api';
+import { fetchCategories, fetchAnimeNames, fetchSources } from '../utils/api';
+import { sourceLabel } from '../utils/listings';
 
 const SORT_OPTIONS = [
-  { value: 'intelligent_score', label: 'Best Match' },
+  { value: 'intelligent_score', label: 'Demand Score' },
   { value: 'trending_score', label: 'Trending' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
@@ -22,6 +23,7 @@ const PRICE_RANGES = [
 function Filters({ filters, onFilterChange, totalItems = 0 }) {
   const [categories, setCategories] = useState([]);
   const [animeNames, setAnimeNames] = useState([]);
+  const [sources, setSources] = useState([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [selectedPriceRange, setSelectedPriceRange] = useState('All Prices');
 
@@ -37,12 +39,14 @@ function Filters({ filters, onFilterChange, totalItems = 0 }) {
 
   async function loadFiltersData() {
     try {
-      const [categoriesData, animeData] = await Promise.all([
+      const [categoriesData, animeData, sourcesData] = await Promise.all([
         fetchCategories(),
-        fetchAnimeNames()
+        fetchAnimeNames(),
+        fetchSources()
       ]);
       setCategories(categoriesData);
       setAnimeNames(animeData);
+      setSources(sourcesData);
     } catch (err) {
       console.error('Error loading filter data:', err);
     }
@@ -73,6 +77,7 @@ function Filters({ filters, onFilterChange, totalItems = 0 }) {
       search: '',
       category: '',
       anime: '',
+      source: '',
       minPrice: '',
       maxPrice: '',
       sortBy: 'intelligent_score',
@@ -84,6 +89,7 @@ function Filters({ filters, onFilterChange, totalItems = 0 }) {
   if (filters.search) activeFilters.push({ key: 'search', label: `"${filters.search}"`, value: filters.search });
   if (filters.anime) activeFilters.push({ key: 'anime', label: filters.anime, value: filters.anime });
   if (filters.category) activeFilters.push({ key: 'category', label: filters.category, value: filters.category });
+  if (filters.source) activeFilters.push({ key: 'source', label: sourceLabel(filters.source), value: filters.source });
   if (filters.minPrice || filters.maxPrice) activeFilters.push({ key: 'price', label: selectedPriceRange, value: selectedPriceRange });
 
   const hasActiveFilters = activeFilters.length > 0;
@@ -148,6 +154,18 @@ function Filters({ filters, onFilterChange, totalItems = 0 }) {
         {PRICE_RANGES.map(range => (
           <option key={range.label} value={range.label}>{range.label}</option>
         ))}
+      </select>
+
+      {/* Source */}
+      <select
+        aria-label="Source"
+        value={filters.source}
+        onChange={e => onFilterChange({ source: e.target.value })}
+        className="bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-md py-2 pl-3 pr-8 text-sm text-[var(--color-text-primary)] focus-ring"
+        style={selectStyles}
+      >
+        <option value="">All Sources</option>
+        {sources.map(source => <option key={source} value={source}>{sourceLabel(source)}</option>)}
       </select>
 
       {/* Sort */}

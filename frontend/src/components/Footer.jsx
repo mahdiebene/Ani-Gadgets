@@ -17,7 +17,7 @@ function Footer() {
           </div>
           
           <p className="text-xs text-[var(--color-text-muted)] text-center sm:text-left">
-            Product data sourced from Daraz. Prices may vary.
+            Listings link to external sellers. Confirm price, stock, delivery and authenticity before buying.
           </p>
           
           <div className="flex items-center gap-4">

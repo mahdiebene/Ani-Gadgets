@@ -29,6 +29,9 @@ test('real PostgreSQL: >1000 rows, search, pagination, permissions and rollback'
     assert.equal(beyond.total, 1105);
     assert.equal(beyond.products.length, 0);
     assert.ok((await db.metadata()).categories.includes(prefix));
+    assert.ok((await db.metadata()).sources.includes('daraz'));
+    assert.equal((await db.listProducts({ category: prefix, source: 'daraz' })).total, 1105);
+    assert.equal((await db.listProducts({ category: prefix, source: 'not-a-source' })).total, 0);
     assert.ok((await db.stats(45)).trendingProducts >= 1105);
     assert.equal((await db.listProducts({ category: prefix, search: 'Naruto, (figure)' })).total, 1105);
     assert.equal((await db.listProducts({ category: prefix, search: "x'); DROP TABLE products; --" })).total, 0);
@@ -36,6 +39,12 @@ test('real PostgreSQL: >1000 rows, search, pagination, permissions and rollback'
     await db.upsertProducts([{ ...rows[0], price: 999, first_seen_at: new Date().toISOString() }]);
     const existing = await db.findExisting([rows[0].product_url]);
     assert.equal(existing[0].first_seen_at.toISOString(), '2020-01-01T00:00:00.000Z');
+    await db.upsertProducts([{ ...rows[0], source: prefix, product_url: `https://example.test/${prefix}` }]);
+    assert.ok((await db.metadata()).sources.includes(prefix));
+    const otherSource = await db.listProducts({ category: prefix, source: prefix });
+    assert.equal(otherSource.total, 1);
+    assert.equal(otherSource.products[0].source, prefix);
+    assert.equal((await db.listProducts({ category: prefix, source: 'daraz' })).total, 1105);
     const permissions = (await client.query(`SELECT
       has_table_privilege('anigadgets_reader', 'products', 'SELECT') AS can_read,
       has_table_privilege('anigadgets_reader', 'products', 'INSERT') AS can_insert,

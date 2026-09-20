@@ -13,7 +13,7 @@ function fakeDatabase(respond) {
       if (respond) return respond(call);
       if (method === 'listProducts') return { products: [], total: 0 };
       if (['getProduct', 'getAnime', 'lastUpdated'].includes(method)) return null;
-      if (method === 'metadata') return { categories: [], anime: [] };
+      if (method === 'metadata') return { categories: [], anime: [], sources: [] };
       return [];
     };
   } });

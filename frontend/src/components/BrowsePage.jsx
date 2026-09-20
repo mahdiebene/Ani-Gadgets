@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Filters from './Filters';
 import ProductGrid from './ProductGrid';
 import { fetchProducts } from '../utils/api';
+import { createBrowseFilters } from '../utils/browse';
 
 const ITEMS_PER_PAGE = 20;
 
-function BrowsePage({ initialCategory = '', initialAnime = '', initialSort = 'intelligent_score', onBack }) {
+function BrowsePage({ initialCategory = '', initialAnime = '', initialSort = 'intelligent_score', initialSearch = '', onBack }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,41 +16,41 @@ function BrowsePage({ initialCategory = '', initialAnime = '', initialSort = 'in
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
-  const [filters, setFilters] = useState({
-    search: '',
+  const [filters, setFilters] = useState(() => createBrowseFilters({
+    search: initialSearch,
     category: initialCategory,
     anime: initialAnime,
-    minPrice: '',
-    maxPrice: '',
-    sortBy: initialSort,
-    sortOrder: 'desc'
-  });
-
-  const loadProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await fetchProducts({
-        ...filters,
-        page: currentPage,
-        limit: ITEMS_PER_PAGE
-      });
-      
-      setProducts(result.products || []);
-      setTotalItems(result.total || result.products?.length || 0);
-      setTotalPages(result.totalPages || Math.ceil((result.total || 0) / ITEMS_PER_PAGE));
-    } catch (err) {
-      console.error('Error loading products:', err);
-      setError('Failed to load products. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, currentPage]);
+    sortBy: initialSort
+  }));
 
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setLoading(true);
+    setError(null);
+    async function loadProducts() {
+      try {
+        const result = await fetchProducts({
+          ...filters, page: currentPage, limit: ITEMS_PER_PAGE
+        }, { signal: controller.signal });
+        if (!active) return;
+        setProducts(result.products);
+        setTotalItems(result.total);
+        setTotalPages(result.totalPages);
+      } catch (err) {
+        if (!active || err.name === 'AbortError') return;
+        console.error('Error loading products:', err);
+        setProducts([]);
+        setTotalItems(0);
+        setTotalPages(0);
+        setError('Failed to load products. Please try again.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
     loadProducts();
-  }, [loadProducts]);
+    return () => { active = false; controller.abort(); };
+  }, [filters, currentPage]);
 
   function handleFilterChange(newFilters) {
     setCurrentPage(1);
@@ -63,7 +64,9 @@ function BrowsePage({ initialCategory = '', initialAnime = '', initialSort = 'in
 
   // Determine page title
   let pageTitle = 'All Products';
-  if (filters.anime) {
+  if (filters.search) {
+    pageTitle = `Search: ${filters.search}`;
+  } else if (filters.anime) {
     pageTitle = filters.anime;
   } else if (filters.category) {
     pageTitle = filters.category;
@@ -77,6 +80,7 @@ function BrowsePage({ initialCategory = '', initialAnime = '', initialSort = 'in
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={onBack}
+          aria-label="Back to home"
           className="flex items-center justify-center w-10 h-10 rounded-lg
                      bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-elevated)]
                      border border-[var(--color-border)] transition-colors"

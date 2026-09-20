@@ -4,7 +4,7 @@ const { asyncRoute, pagination, numberParam, textParam, httpError } = require('.
 module.exports = function productRoutes(db) {
   const router = express.Router();
   // Aggregation happens in SQL, not a capped row fetch.
-  for (const [path, key] of [['categories', 'categories'], ['anime', 'anime']]) {
+  for (const [path, key] of [['categories', 'categories'], ['anime', 'anime'], ['sources', 'sources']]) {
     router.get(`/meta/${path}`, asyncRoute(async (req, res) => {
       const metadata = await db.metadata();
       res.json({ success: true, data: metadata[key] });
@@ -25,9 +25,10 @@ module.exports = function productRoutes(db) {
     }
     const category = textParam(req.query.category);
     const anime = textParam(req.query.anime);
+    const source = textParam(req.query.source, 50);
     const search = textParam(req.query.search);
     const { products, total } = await db.listProducts({ limit, offset, minScore, minPrice, maxPrice,
-      category, anime, search, scoredOnly: req.query.scoredOnly === 'true',
+      category, anime, source, search, scoredOnly: req.query.scoredOnly === 'true',
       sortBy: textParam(req.query.sortBy), sortOrder: textParam(req.query.sortOrder) });
     res.json({ success: true, data: products, pagination: { limit, offset, total } });
   }));

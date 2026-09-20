@@ -2,8 +2,10 @@
  * Format price in BDT
  */
 export function formatPrice(price) {
-  if (!price) return '৳0';
-  return `৳${price.toLocaleString('en-BD')}`;
+  if (!['number', 'string'].includes(typeof price) || String(price).trim() === '') return 'Price unknown';
+  const value = Number(price);
+  if (!Number.isFinite(value) || value < 0) return 'Price unknown';
+  return `৳${value.toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -39,8 +41,10 @@ export function truncateText(text, maxLength = 50) {
  * Format date relative to now
  */
 export function formatRelativeTime(dateString) {
+  if (!dateString) return 'Unknown';
   const date = new Date(dateString);
   const now = new Date();
+  if (!Number.isFinite(date.getTime()) || date > now) return 'Unknown';
   const diffMs = now - date;
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);

@@ -1,8 +1,10 @@
 #!/bin/bash
-# Read-only/rolled-back deployment checks; never prints password values.
+# Read-only deployment checks; never prints password values.
 set -euo pipefail
 compose=(docker compose -f /opt/anigadgets/deploy/compose.yml)
-"${compose[@]}" run --rm --no-deps -e TEST_DATABASE=1 ingest node --test
+# Integration tests require a disposable, owner-provisioned database, not production.
+# Even rolled-back test inserts advance sequences; catalogue tests also need owner access.
+"${compose[@]}" run --rm --no-deps -e TEST_DATABASE=0 ingest node --test
 "${compose[@]}" exec -T api node - <<'NODE'
 const assert = require('node:assert/strict');
 const { createPool } = require('./src/db/pool');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Search, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -37,6 +37,7 @@ function Header({ onSearch }) {
               <input
                 type="text"
                 placeholder="Search anime merch..."
+                aria-label="Search anime merchandise"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border)] 
@@ -47,6 +48,7 @@ function Header({ onSearch }) {
               />
               <button 
                 type="submit"
+                aria-label="Search"
                 className="absolute right-0 top-0 h-full px-3 text-[var(--color-text-muted)] 
                          hover:text-[var(--color-accent)] transition-colors"
               >

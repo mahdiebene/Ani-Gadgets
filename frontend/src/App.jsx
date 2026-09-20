@@ -6,6 +6,7 @@ import BrowsePage from './components/BrowsePage';
 import Footer from './components/Footer';
 import BackToTop from './components/BackToTop';
 import { fetchStats, fetchCategories } from './utils/api';
+import { nextBrowseNavigation } from './utils/browse';
 
 function App() {
   const [stats, setStats] = useState(null);
@@ -42,7 +43,7 @@ function App() {
     if (category === 'All') {
       setCurrentView('home');
     } else {
-      setBrowseConfig({ category, anime: '', sortBy: 'intelligent_score' });
+      setBrowseConfig(previous => nextBrowseNavigation(previous, { category }));
       setCurrentView('browse');
     }
   }
@@ -51,10 +52,10 @@ function App() {
   function handleViewCategory(category, sortBy = 'intelligent_score') {
     if (category === 'All') {
       setActiveCategory('All');
-      setBrowseConfig({ category: '', anime: '', sortBy });
+      setBrowseConfig(previous => nextBrowseNavigation(previous, { sortBy }));
     } else {
       setActiveCategory(category);
-      setBrowseConfig({ category, anime: '', sortBy });
+      setBrowseConfig(previous => nextBrowseNavigation(previous, { category, sortBy }));
     }
     setCurrentView('browse');
   }
@@ -62,7 +63,7 @@ function App() {
   // Handle "View All" from anime section
   function handleViewAnime(anime) {
     setActiveCategory('All');
-    setBrowseConfig({ category: '', anime, sortBy: 'intelligent_score' });
+    setBrowseConfig(previous => nextBrowseNavigation(previous, { anime }));
     setCurrentView('browse');
   }
 
@@ -70,7 +71,7 @@ function App() {
   function handleSearch(searchTerm) {
     if (searchTerm.trim()) {
       setActiveCategory('All');
-      setBrowseConfig({ category: '', anime: '', sortBy: 'intelligent_score', search: searchTerm });
+      setBrowseConfig(previous => nextBrowseNavigation(previous, { search: searchTerm }));
       setCurrentView('browse');
     }
   }
@@ -103,9 +104,11 @@ function App() {
           />
         ) : (
           <BrowsePage 
+            key={browseConfig.revision}
             initialCategory={browseConfig.category}
             initialAnime={browseConfig.anime}
             initialSort={browseConfig.sortBy}
+            initialSearch={browseConfig.search}
             onBack={handleBackToHome}
           />
         )}

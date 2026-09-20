@@ -48,6 +48,20 @@ test('search punctuation is passed as full-text data, never an or-filter express
   assert.equal(db.calls[0].args[0].search, search);
 });
 
+test('source metadata and filters use real database data and reject malformed inputs', async t => {
+  const db = fakeDatabase(call => call.method === 'metadata'
+    ? { sources: ['daraz', 'Example partner'] } : { products: [], total: 0 });
+  const get = await serve(t, db);
+  assert.deepEqual((await get('/api/products/meta/sources')).body.data, ['daraz', 'Example partner']);
+  assert.equal((await get('/api/products?source=Example%20partner')).status, 200);
+  assert.equal(db.calls[1].args[0].source, 'Example partner');
+  const before = db.calls.length;
+  for (const value of ['source[]=daraz', `source=${'a'.repeat(51)}`]) {
+    assert.equal((await get(`/api/products?${value}`)).status, 400);
+  }
+  assert.equal(db.calls.length, before);
+});
+
 test('metadata and stats use aggregates and the shared threshold', async t => {
   const categories = Array.from({ length: 1100 }, (_, i) => `Category ${i}`);
   const db = fakeDatabase(call => call.method === 'metadata' ? { categories, anime: ['Naruto'] } : { totalProducts: 12000 });

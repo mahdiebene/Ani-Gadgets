@@ -5,7 +5,7 @@ const PRODUCT_COLUMNS = [
   'last_seen_at', 'first_seen_at', 'times_seen', 'intelligent_score', 'trending_score',
   'trending_status', 'trending_label', 'score_breakdown', 'score_explanation', 'score_version'
 ];
-const SORT_FIELDS = new Set(['intelligent_score', 'price', 'scraped_at', 'reviews_count', 'times_seen', 'units_sold']);
+const SORT_FIELDS = new Set(['intelligent_score', 'trending_score', 'price', 'scraped_at', 'reviews_count', 'times_seen', 'units_sold']);
 
 function createRepository(connection) {
   const query = (text, values = []) => connection.query(text, values);
@@ -21,7 +21,7 @@ function createRepository(connection) {
         (SELECT count(*) FROM public.trending_anime) AS anime_count FROM public.products`);
       return rows[0].newest;
     },
-    async listProducts({ limit = 20, offset = 0, minScore = 0, minPrice, maxPrice, category, anime, search, scoredOnly, sortBy, sortOrder } = {}) {
+    async listProducts({ limit = 20, offset = 0, minScore = 0, minPrice, maxPrice, category, anime, source, search, scoredOnly, sortBy, sortOrder } = {}) {
       const values = [];
       const clauses = ['p.is_available = true'];
       const add = (sql, value) => { values.push(value); clauses.push(sql.replace('?', `$${values.length}`)); };
@@ -31,6 +31,7 @@ function createRepository(connection) {
       if (maxPrice !== undefined) add('p.price <= ?', maxPrice);
       if (category) add('p.category = ?', category);
       if (anime) add('p.anime_name = ?', anime);
+      if (source) add('p.source = ?', source);
       if (search) add("p.search_document @@ websearch_to_tsquery('simple', ?)", search);
       const field = SORT_FIELDS.has(sortBy) ? sortBy : 'intelligent_score';
       const direction = sortOrder === 'asc' ? 'ASC' : 'DESC';

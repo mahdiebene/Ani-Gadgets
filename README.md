@@ -18,6 +18,31 @@ Anime merchandise discovery for Bangladesh: Daraz listings, prices in BDT, anime
 - Database and ingestion-freshness health checks.
 - Responsive React interface with light and dark themes.
 
+## Multi-source discovery and catalogue foundation
+
+- Source-aware seller links and source filtering; existing Daraz ingestion is retained.
+- Header search reaches Browse, and saved listing IDs persist on the same browser.
+- Listing cards distinguish demand scores from authenticity, show observation freshness, and keep unknown prices explicit.
+- An additive, owner-only catalogue schema separates identities, merchants, offers, observations and evidence. Comparison/import activation is still pending; no new merchant partnerships are implied.
+
+Current roadmap: [Implementation plan](https://github.com/mahdiebene/Ani-Gadgets/blob/main/plan.md).
+Migration and limitations: [Catalogue foundation](https://github.com/mahdiebene/Ani-Gadgets/blob/main/docs/catalogue-foundation.md).
+
+Publishing these changes does not apply database migrations. Deploy schema, then API, then frontend; source filtering requires the matching `/api/products/meta/sources` endpoint. Production API configuration and live requests must be verified separately.
+
+### Checks (PowerShell)
+
+```powershell
+npm --prefix 'E:\ani-gadgets\backend' test
+npm --prefix 'E:\ani-gadgets\frontend' test
+npm --prefix 'E:\ani-gadgets\frontend' run build
+# Optional fixture-based browser check (Chrome/Chromium must be installed):
+$env:CHROME_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+npm --prefix 'E:\ani-gadgets\frontend' run test:browser
+```
+
+Database integration tests are opt-in with `TEST_DATABASE=1` against a disposable, schema/role-provisioned PostgreSQL instance. No deployment or production migration is performed by these commands.
+
 ## License
 
 MIT
