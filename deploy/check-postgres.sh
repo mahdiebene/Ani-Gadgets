@@ -41,11 +41,11 @@ if [ "$#" = 2 ]; then
     --no-owner --no-acl --exit-on-error < "$2"
 fi
 docker exec "$container" sh -c 'mkdir -p /run/secrets; printf "%s" disposable-test-only > /run/secrets/db_reader_password; printf "%s" disposable-test-only > /run/secrets/db_writer_password'
-docker cp "$root/backend/db/schema.sql" "$container:/tmp/schema.sql"
-docker cp "$root/deploy/roles.sql" "$container:/tmp/roles.sql"
 for attempt in 1 2; do
-  docker exec "$container" psql -X -U anigadgets_owner -d anigadgets -v ON_ERROR_STOP=1 -f /tmp/schema.sql
-  docker exec "$container" psql -X -U anigadgets_owner -d anigadgets -v ON_ERROR_STOP=1 -f /tmp/roles.sql
+  for file in "$root/backend/db/schema.sql" "$root/deploy/roles.sql"; do
+    docker exec -i -e PGOPTIONS='-c lock_timeout=5000 -c statement_timeout=60000' "$container" \
+      psql -X -U anigadgets_owner -d anigadgets -v ON_ERROR_STOP=1 < "$file"
+  done
 done
 docker run --rm --pull=never --network "container:$container" --memory 512m --cpus 1 \
   --read-only --tmpfs /tmp:rw,size=32m --cap-drop ALL --security-opt no-new-privileges:true \

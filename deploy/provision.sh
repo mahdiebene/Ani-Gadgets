@@ -19,8 +19,13 @@ for name in db_admin_password db_reader_password db_writer_password; do
 done
 chmod 0755 /opt/anigadgets/deploy/init-db.sh /opt/anigadgets/deploy/backup.sh
 docker compose -f /opt/anigadgets/deploy/compose.yml up -d --wait database
-# Reapply migrations on upgrades too; no tables are dropped.
-docker compose -f /opt/anigadgets/deploy/compose.yml exec -T database sh /docker-entrypoint-initdb.d/10-anigadgets.sh
+# Stream current host files on upgrades. Replacing a bind-mounted file can leave
+# a running container pointing at its old inode until it is recreated.
+for file in /opt/anigadgets/backend/db/schema.sql /opt/anigadgets/deploy/roles.sql; do
+  docker compose -f /opt/anigadgets/deploy/compose.yml exec -T \
+    -e PGOPTIONS='-c lock_timeout=5000 -c statement_timeout=60000' database \
+    psql -X -U anigadgets_owner -d anigadgets -v ON_ERROR_STOP=1 < "$file"
+done
 docker compose -f /opt/anigadgets/deploy/compose.yml up -d --build api
 install -m 0644 /opt/anigadgets/deploy/systemd/* /etc/systemd/system/
 systemctl daemon-reload

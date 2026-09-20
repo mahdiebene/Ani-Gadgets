@@ -27,12 +27,12 @@ Production migrations and hosting changes are separate, not inferred from local 
 - Local tools include PostgreSQL **16 only**; PostgreSQL 17, staging and live production compatibility were **not** validated. Software completion is not a deployment claim.
 - Current operator guide: `E:\ani-gadgets\docs\solo-catalogue.md`. Offline UI: build the frontend, run `npm --prefix 'E:\ani-gadgets\backend' run demo`, then open `http://127.0.0.1:4173/#catalogue`.
 
-## Production release request — 2026-09-20 (preflight; not deployed)
+## Production release request — 2026-09-20 (initial preflight, since resolved)
 
 - Owner requested production rollout. Revalidated all 42 backend tests on disposable PostgreSQL 16, all 19 frontend tests, production build and fixture-only Chrome smoke.
-- Remote main was confirmed at `b63aace`; GitHub authentication is available. Push is held until schema/API rollout is possible, because main triggers Vercel publication.
-- Live API health is OK and reports 999 available listings, but `/api/products/meta/sources` and `/api/catalogue` return 404: backend deployment is behind the frontend feature set.
-- Published frontend bundle contains `https://api.anigadgetsbd.app/api`, and live product requests allow the canonical `https://www.anigadgetsbd.app` origin. The new catalogue UI is not yet published. No Vercel API URL change is indicated by these checks.
+- Remote main was confirmed at `b63aace`; GitHub authentication was available. Push was held until schema/API rollout, because main triggers Vercel publication.
+- Initial live API health was OK with 999 available listings, but `/api/products/meta/sources` and `/api/catalogue` returned 404: the backend was behind the frontend feature set.
+- The previous frontend bundle contained `https://api.anigadgetsbd.app/api`, and product requests allowed the canonical `https://www.anigadgetsbd.app` origin. The new catalogue UI was not yet published at this preflight step. No Vercel API URL change was needed.
 - The installed SSH key was initially rejected for the root login. The deployment was held for the correct non-root login. No password/private key was requested or printed.
 - Expanded the production verifier with read-only source filtering, catalogue response, private-table isolation and no-public-demo checks. No production data or configuration changed during preflight.
 - Access blocker subsequently resolved: the owner supplied the correct non-root deployment login; SSH and noninteractive sudo were verified. Deployment targets only the existing `/opt/anigadgets` stack. A disposable, network-isolated PostgreSQL 17 checker was added for fresh-schema and restored-backup upgrade validation before production migration.
@@ -43,7 +43,13 @@ Production migrations and hosting changes are separate, not inferred from local 
 - PostgreSQL **17.11**: all **42 backend tests passed, zero skipped**, both on a fresh isolated database and on an isolated production-backup restore after applying schema/grants twice. Temporary containers were removed. This is a disposable staging rehearsal, not integration testing against production.
 - Applied additive schema and restricted grants to production with lock/statement timeouts, then deployed image `anigadgets-backend:solo-20260920` to the API only. Listing count and complete-row hash were identical before/after migration. Preserved database volume, credentials and TLS proxy.
 - Live read-only verifier passed: reader cannot access private tables or write listings; source filtering, pagination, metadata, statistics and reviewed-catalogue API work. 999 available listings; **zero published identities and zero public demo inventory**, intentionally awaiting manual curation. The production verifier ran 39 database-free tests, with all 3 integration tests intentionally skipped.
-- Ingestion timer was briefly paused for migration and restored automatically afterward; no unrelated application services changed. Frontend publication and final live-browser verification follow the API rollout.
+- Ingestion timer was briefly paused for migration and restored automatically afterward; no unrelated application services changed.
+- Application release `272279d` was committed and pushed after API verification. GitHub Actions passed and Vercel production deployment succeeded. The published bundle includes the catalogue UI and correct production API URL.
+- Production Chrome smoke passed against the canonical site: real catalogue reads/CORS, Daraz search/source filter, saved-item persistence/reload/removal and mobile layout. Temporary browser profile removed; no purchases, seller requests or server writes from browser validation.
+- Post-deployment Daraz refresh completed at 18:11:29 UTC: 1,000 products, 50 requests, exit status 0; the configured cap was reached and missing-row reconciliation correctly skipped.
+- After refresh: 1,011 total listings, **1,009 available**; API health fresh; reviewed catalogue and demo counts still zero; both scheduled timers active.
+- Corrected future provisioning to stream host schema/grants rather than trust old container bind-mount inodes. Revalidated the stdin migration path on another isolated PostgreSQL 17 backup restore: 42 passed, no skips. No production database restart or full installer rerun.
+- Release/rollback record: `E:\ani-gadgets\docs\production-release.md`. Root-only source/database backups and the previous image remain on the server; off-host disaster recovery is not configured by this rollout.
 
 ## Historical plan and publication log (superseded, retained for context)
 
